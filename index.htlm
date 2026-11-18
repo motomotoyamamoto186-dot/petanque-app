@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ペタンク・メレ大会運営システム</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+    body { font-family: 'Noto Sans JP', sans-serif; background-color: #f8fafc; color: #1e293b; -webkit-tap-highlight-color: transparent; }
+    .tab-active { border-bottom: 3px solid #0f766e; color: #0f766e; font-weight: 700; background-color: #f0fdfa; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background: white !important; }
+      .card-shadow { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+<body class="pb-24 md:pb-12">
+
+  <!-- 選手用QR閲覧モード専用バナー -->
+  <div id="viewer-banner" class="hidden bg-teal-800 text-white px-4 py-3 shadow-md">
+    <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <span class="bg-amber-400 text-slate-900 text-xs font-bold px-2 py-0.5 rounded mr-2">選手用 閲覧モード</span>
+        <span id="viewer-tournament-name" class="font-bold text-sm md:text-base">ペタンク・メレ大会</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <select id="viewer-player-select" onchange="setViewerHighlight(this.value)" class="text-slate-900 text-sm rounded px-2 py-1 font-bold bg-white">
+          <option value="">自分の名前をハイライト...</option>
+        </select>
+        <button onclick="exitViewerMode()" class="text-xs bg-teal-700 hover:bg-teal-600 px-2.5 py-1 rounded border border-teal-500">運営画面へ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- メインヘッダー -->
+  <header class="bg-gradient-to-r from-teal-800 to-emerald-800 text-white shadow-md no-print">
+    <div class="max-w-6xl mx-auto px-4 py-3 md:py-4 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded">PÉTANQUE MÊLÉE</span>
+          <span id="header-rule-badge" class="text-xs text-teal-100 font-medium">11点先取 ／ 50分制</span>
+        </div>
+        <h1 id="header-title" class="text-lg md:text-2xl font-black tracking-tight mt-0.5">ペタンク・メレ大会運営システム</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openQrModal()" class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-xs md:text-sm px-3 py-2 rounded-lg shadow flex items-center gap-1.5 transition">
+          <span>📱 QR共有</span>
+        </button>
+        <button onclick="window.print()" class="bg-white/15 hover:bg-white/25 text-white font-bold text-xs md:text-sm px-3 py-2 rounded-lg border border-white/30 transition">
+          🖨️ 印刷
+        </button>
+      </div>
+    </div>
+
+    <!-- PC用上部ナビゲーション -->
+    <nav class="bg-white text-slate-600 border-b border-slate-200 hidden md:block">
+      <div class="max-w-6xl mx-auto px-4 flex">
+        <button onclick="switchTab('guide')" id="nav-guide" class="px-5 py-3 text-sm font-medium hover:text-teal-700 transition tab-active">📖 はじめに（使い方）</button>
+        <button onclick="switchTab('setup')" id="nav-setup" class="px-5 py-3 text-sm font-medium hover:text-teal-700 transition">1. 大会設定・参加者</button>
+        <button onclick="switchTab('matches')" id="nav-matches" class="px-5 py-3 text-sm font-medium hover:text-teal-700 transition">2. 対戦表・タイマー・得点</button>
+        <button onclick="switchTab('standings')" id="nav-standings" class="px-5 py-3 text-sm font-medium hover:text-teal-700 transition">3. 順位表・成績発表</button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- メインコンテンツエリア -->
+  <main class="max-w-6xl mx-auto px-3 md:px-4 pt-4 md:pt-6">
+
+    <!-- ==================== TAB 0: 使い方ガイド ==================== -->
+    <section id="tab-guide" class="space-y-6">
+      <div class="bg-white rounded-2xl p-5 md:p-8 shadow-sm border border-slate-200">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
+          <div>
+            <span class="text-teal-700 font-bold text-xs uppercase tracking-wider">Quick Start Guide</span>
+            <h2 class="text-xl md:text-2xl font-black text-slate-800 mt-1">大会運営のかんたん4ステップ</h2>
+            <p class="text-sm text-slate-500 mt-1">個人参加・毎試合メンバー替え（メレ／スーパーメレ形式）の抽選・時間管理・順位集計をすべて自動で行います。</p>
+          </div>
+          <button onclick="switchTab('setup')" class="bg-teal-700 hover:bg-teal-600 text-white font-bold px-6 py-3 rounded-xl shadow-md transition text-sm md:text-base">
+            さっそく設定を始める ➡
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="w-8 h-8 rounded-full bg-teal-700 text-white font-black flex items-center justify-center text-sm">1</span>
+              <h3 class="font-bold text-slate-800 text-base">大会ルールと参加者を登録</h3>
+            </div>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              大会名・予定ラウンド数・使用コート数・順位方式（<strong>勝利数＋BHS方式</strong> または <strong>カスタムポイント制</strong>）を選びます。参加者は名前を入れて協会ボタン（札幌・北見・美幌など）を押すだけで登録できます。
+            </p>
+          </div>
+
+          <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="w-8 h-8 rounded-full bg-teal-700 text-white font-black flex items-center justify-center text-sm">2</span>
+              <h3 class="font-bold text-slate-800 text-base">自動抽選＆コート配分（2×3変則対応）</h3>
+            </div>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              同じ人と連続で味方・対戦相手にならないよう自動計算してチームを作成します。人数やコート数に応じて<strong>トリプルス（3×3）・変則（2×3）・ダブルス（2×2）</strong>を自動調整します。
+            </p>
+          </div>
+
+          <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="w-8 h-8 rounded-full bg-teal-700 text-white font-black flex items-center justify-center text-sm">3</span>
+              <h3 class="font-bold text-slate-800 text-base">50分/45分ホイッスルタイマー＆QR共有</h3>
+            </div>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              対戦表画面のタイマーで<strong>残り5分（ピッ！ピッ！）</strong>と<strong>試合終了（ピーーーッ！）</strong>のホイッスルが鳴ります。また「📱 QR共有」から選手のスマホへ対戦表・順位を共有できます。
+            </p>
+          </div>
+
+          <div class="bg-slate-50 rounded-xl p-5 border border-slate-200">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="w-8 h-8 rounded-full bg-teal-700 text-white font-black flex items-center justify-center text-sm">4</span>
+              <h3 class="font-bold text-slate-800 text-base">スコア入力 ➡ 全回戦終了で成績発表</h3>
+            </div>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              11点先取ボタンまたは得点入力で勝敗を記録すると「次のラウンドへ進む」ボタンが出現。予定した全ラウンドが完了すると<strong>「🏆 最終成績発表」</strong>ボタンが表示されます。
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="text-sm text-amber-900">
+            <strong>💡 動作テストをしてみたい場合：</strong> 設定画面の「サンプル33名を読み込む」を押すと、すぐに33名分のデータで抽選・タイマー・順位表をお試しいただけます。
+          </div>
+          <button onclick="loadSampleAndGo()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-xs md:text-sm px-4 py-2 rounded-lg shadow-sm transition">
+            サンプル33名を入れて試す
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 1: 大会設定・参加者 ==================== -->
+    <section id="tab-setup" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- 左カラム：大会ルール設定 -->
+        <div class="lg:col-span-5 space-y-5">
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
+            <h2 class="text-lg font-black text-slate-800 border-b border-slate-100 pb-2">⚙️ 大会基本設定</h2>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">大会名（ヘッダー・QR・印刷に反映）</label>
+              <input type="text" id="tournament-name" value="第1回 ペタンク・メレ交流大会" oninput="updateConfig()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-teal-500 outline-none" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">本日の予定ラウンド数</label>
+                <select id="planned-rounds" onchange="updateConfig()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold bg-white">
+                  <option value="3">全 3 回戦</option>
+                  <option value="4" selected>全 4 回戦</option>
+                  <option value="5">全 5 回戦</option>
+                  <option value="6">全 6 回戦</option>
+                  <option value="7">全 7 回戦</option>
+                  <option value="8">全 8 回戦</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">試合時間（11点先取制）</label>
+                <select id="match-duration" onchange="changeDuration(this.value)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold bg-white">
+                  <option value="50" selected>50分（11点先取）</option>
+                  <option value="45">45分（11点先取）</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 使用コート数ボタン -->
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1.5">使用コート数（トリプルス・ダブルス・2×3自動調整）</label>
+              <div id="court-buttons" class="grid grid-cols-5 gap-1.5"></div>
+              <div id="court-preview-box" class="mt-2 bg-teal-50 border border-teal-200 rounded-lg p-2.5 text-xs text-teal-900 font-medium">
+                構成プレビューを計算中...
+              </div>
+            </div>
+
+            <!-- 順位決定方式の選択 -->
+            <div class="pt-2 border-t border-slate-100">
+              <label class="block text-xs font-bold text-slate-600 mb-2">順位決定方式の選択</label>
+              <div class="space-y-2">
+                <label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition bg-slate-50 hover:bg-teal-50/50 border-slate-200" id="rank-mode-bhs-label">
+                  <input type="radio" name="rankingMode" value="bhs" checked onchange="updateConfig()" class="mt-1 accent-teal-700" />
+                  <div>
+                    <div class="text-sm font-bold text-slate-800">標準：勝利数 ＋ BHS方式（ソルコフ）</div>
+                    <div class="text-xs text-slate-500">①勝利数 → ②BHS（対戦相手・味方の勝利数合計）→ ③得失点差 → ④総得点</div>
+                  </div>
+                </label>
+
+                <label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition bg-slate-50 hover:bg-teal-50/50 border-slate-200" id="rank-mode-pts-label">
+                  <input type="radio" name="rankingMode" value="points" onchange="updateConfig()" class="mt-1 accent-teal-700" />
+                  <div>
+                    <div class="text-sm font-bold text-slate-800">カスタムポイント制（直接対決優先）</div>
+                    <div class="text-xs text-slate-500">①累計ポイント → ②直接対決の勝敗 → ③得失点差 → ④総得点</div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- ポイント詳細設定（カスタムポイント制選択時のみ表示） -->
+              <div id="custom-points-box" class="hidden mt-3 bg-amber-50/70 border border-amber-200 rounded-xl p-3 space-y-2">
+                <div class="text-xs font-bold text-amber-900">ポイント配分設定（参加点は敗戦時のみ加点）</div>
+                <div class="grid grid-cols-3 gap-2">
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600">勝利点</label>
+                    <input type="number" step="0.5" id="pt-win" value="1" oninput="updateConfig()" class="w-full border border-slate-300 rounded px-2 py-1 text-sm font-bold bg-white" />
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600">引き分け点</label>
+                    <input type="number" step="0.5" id="pt-draw" value="0.5" oninput="updateConfig()" class="w-full border border-slate-300 rounded px-2 py-1 text-sm font-bold bg-white" />
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-600">参加点(敗戦時)</label>
+                    <input type="number" step="0.5" id="pt-loss" value="0" oninput="updateConfig()" class="w-full border border-slate-300 rounded px-2 py-1 text-sm font-bold bg-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 抽選開始アクションカード -->
+          <div class="bg-gradient-to-br from-teal-700 to-emerald-800 text-white rounded-2xl p-5 shadow-md space-y-3">
+            <div class="text-sm font-bold opacity-90">参加者の登録が終わったら</div>
+            <button onclick="startFirstRound()" class="w-full bg-amber-400 hover:bg-amber-300 text-slate-900 font-black py-3.5 px-4 rounded-xl shadow text-base transition flex items-center justify-center gap-2">
+              <span>🎲 第1回戦の組み合わせを作成して開始</span>
+            </button>
+            <button onclick="resetAllData()" class="w-full bg-white/10 hover:bg-white/20 text-white text-xs py-2 rounded-lg transition">
+              データをすべて初期化（リセット）
+            </button>
+          </div>
+        </div>
+
+        <!-- 右カラム：参加者＆協会登録 -->
+        <div class="lg:col-span-7 bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h2 class="text-lg font-black text-slate-800">👥 参加者リスト（現在 <span id="player-count" class="text-teal-700 text-xl">0</span> 名）</h2>
+              <p class="text-xs text-slate-500">名前の横の協会ボタンを押すだけで所属を切り替えられます</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="loadSample33()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2 rounded-lg border border-slate-300 transition">
+                📋 サンプル33名読込
+              </button>
+              <button onclick="clearPlayers()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs px-3 py-2 rounded-lg border border-rose-200 transition">
+                全員削除
+              </button>
+            </div>
+          </div>
+
+          <!-- 1名追加フォーム -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+            <div class="flex flex-wrap gap-2">
+              <input type="text" id="new-player-name" placeholder="選手名を入力（例：佐藤 健太）" onkeydown="if(event.key==='Enter') addSinglePlayer()" class="flex-1 min-w-[180px] border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-teal-500 outline-none" />
+              <select id="new-player-assoc" class="border border-slate-300 rounded-lg px-2.5 py-2 text-sm font-bold bg-white">
+                <option value="0">協会なし</option>
+                <option value="1">1. 札幌市</option>
+                <option value="2">2. 北見市</option>
+                <option value="3" selected>3. 美幌町</option>
+                <option value="4">4. 池田町</option>
+                <option value="5">5. 森町</option>
+                <option value="6">6. 安平町</option>
+                <option value="7">7. むかわ町</option>
+                <option value="8">8. 白老町</option>
+              </select>
+              <button onclick="addSinglePlayer()" class="bg-teal-700 hover:bg-teal-600 text-white font-bold text-sm px-4 py-2 rounded-lg transition">
+                ＋ 追加
+              </button>
+            </div>
+            <details class="text-xs text-slate-600">
+              <summary class="cursor-pointer font-bold text-teal-700 hover:underline">まとめて複数名を一括登録する（貼り付け入力）</summary>
+              <div class="mt-2 space-y-2 pt-2 border-t border-slate-200">
+                <div class="flex items-center gap-2">
+                  <span>一括登録時のデフォルト協会：</span>
+                  <select id="bulk-assoc" class="border border-slate-300 rounded px-2 py-1 bg-white font-bold">
+                    <option value="0">協会なし</option>
+                    <option value="1">1. 札幌市</option>
+                    <option value="2">2. 北見市</option>
+                    <option value="3" selected>3. 美幌町</option>
+                    <option value="4">4. 池田町</option>
+                    <option value="5">5. 森町</option>
+                    <option value="6">6. 安平町</option>
+                    <option value="7">7. むかわ町</option>
+                    <option value="8">8. 白老町</option>
+                  </select>
+                </div>
+                <textarea id="bulk-names" rows="3" placeholder="改行区切りで名前を入力してください&#10;山田 太郎&#10;鈴木 花子" class="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white"></textarea>
+                <button onclick="addBulkPlayers()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-1.5 rounded-lg">まとめて追加する</button>
+              </div>
+            </details>
+          </div>
+
+          <!-- 登録済み選手一覧 -->
+          <div id="player-list-container" class="space-y-2 max-h-[520px] overflow-y-auto pr-1"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: 対戦表・タイマー・得点 ==================== -->
+    <section id="tab-matches" class="hidden space-y-5">
+
+      <!-- タイマーバー -->
+      <div id="timer-card" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 no-print">
+        <div class="flex items-center gap-4">
+          <div class="bg-slate-900 text-white px-4 py-2 rounded-xl text-center min-w-[130px]" id="timer-display-box">
+            <div class="text-[10px] text-slate-400 font-bold tracking-wider">REMAINING TIME</div>
+            <div id="timer-display" class="text-3xl font-black font-mono tracking-tight">50:00</div>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-1.5">
+              <button onclick="toggleTimer()" id="timer-start-btn" class="bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs md:text-sm px-4 py-2 rounded-lg shadow-sm transition">
+                ▶ スタート
+              </button>
+              <button onclick="resetTimer()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs md:text-sm px-3 py-2 rounded-lg transition">
+                ↺ リセット
+              </button>
+              <div class="flex border border-slate-300 rounded-lg overflow-hidden ml-1">
+                <button onclick="changeDuration(50)" id="dur-btn-50" class="px-2.5 py-1.5 text-xs font-bold bg-teal-700 text-white">50分</button>
+                <button onclick="changeDuration(45)" id="dur-btn-45" class="px-2.5 py-1.5 text-xs font-bold bg-white text-slate-600">45分</button>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <button onclick="playWhistle('warning')" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[11px] px-2.5 py-1 rounded border border-amber-300 transition">
+                🔊 残り5分試聴
+              </button>
+              <button onclick="playWhistle('end')" class="bg-rose-100 hover:bg-rose-200 text-rose-900 font-bold text-[11px] px-2.5 py-1 rounded border border-rose-300 transition">
+                🔊 試合終了試聴
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ラウンド切替タブ -->
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="round-tabs" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </div>
+
+      <!-- ラウンド完了時の大型進行バナー（条件達成時のみ表示） -->
+      <div id="round-complete-banner" class="hidden no-print"></div>
+
+      <!-- 現在のラウンド操作ヘッダー -->
+      <div class="flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <h2 id="current-round-heading" class="text-lg font-black text-slate-800">第1回戦 対戦表</h2>
+          <p id="current-round-sub" class="text-xs text-slate-500">全試合 11点先取制 ／ 勝敗を入力してください</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 no-print">
+          <button onclick="toggleSwapMode()" id="swap-mode-btn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2 rounded-lg border border-slate-300 transition">
+            🔄 選手手動入替: OFF
+          </button>
+          <button onclick="rerollCurrentRound()" class="bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs px-3 py-2 rounded-lg border border-amber-300 transition">
+            🎲 この回戦を再抽選
+          </button>
+        </div>
+      </div>
+
+      <!-- 待機（休み）選手表示 -->
+      <div id="resting-players-box" class="hidden bg-slate-100 border border-slate-300 rounded-xl p-3 text-sm"></div>
+
+      <!-- コート一覧グリッド -->
+      <div id="courts-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+    </section>
+
+    <!-- ==================== TAB 3: 順位表・成績発表 ==================== -->
+    <section id="tab-standings" class="hidden space-y-5">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div>
+            <span id="standings-badge" class="bg-teal-100 text-teal-800 text-xs font-bold px-2.5 py-0.5 rounded">個人成績ランキング</span>
+            <h2 id="standings-title" class="text-xl font-black text-slate-800 mt-1">個人順位表</h2>
+            <p id="standings-rule-desc" class="text-xs text-slate-500 mt-0.5"></p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 no-print">
+            <select id="assoc-filter" onchange="renderStandings()" class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold bg-white">
+              <option value="all">すべての協会を表示</option>
+              <option value="1">1. 札幌市のみ</option>
+              <option value="2">2. 北見市のみ</option>
+              <option value="3">3. 美幌町のみ</option>
+              <option value="4">4. 池田町のみ</option>
+              <option value="5">5. 森町のみ</option>
+              <option value="6">6. 安平町のみ</option>
+              <option value="7">7. むかわ町のみ</option>
+              <option value="8">8. 白老町のみ</option>
+            </select>
+            <button onclick="exportCsv()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition">
+              📥 CSV保存
+            </button>
+          </div>
+        </div>
+
+        <!-- TOP3 表彰台カード -->
+        <div id="podium-container" class="grid grid-cols-1 md:grid-cols-3 gap-3 my-5"></div>
+
+        <!-- 順位テーブル -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead id="standings-thead" class="bg-slate-100 text-slate-700 text-xs uppercase border-y border-slate-200"></thead>
+            <tbody id="standings-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- スマホ用下部固定ナビゲーション -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 shadow-lg grid grid-cols-4 z-40 no-print">
+    <button onclick="switchTab('guide')" id="mnav-guide" class="py-2.5 flex flex-col items-center justify-center text-[11px] font-bold text-teal-700 bg-teal-50/60">
+      <span class="text-base">📖</span><span>使い方</span>
+    </button>
+    <button onclick="switchTab('setup')" id="mnav-setup" class="py-2.5 flex flex-col items-center justify-center text-[11px] font-medium text-slate-500">
+      <span class="text-base">⚙️</span><span>設定・選手</span>
+    </button>
+    <button onclick="switchTab('matches')" id="mnav-matches" class="py-2.5 flex flex-col items-center justify-center text-[11px] font-medium text-slate-500">
+      <span class="text-base">🎯</span><span>対戦・タイマー</span>
+    </button>
+    <button onclick="switchTab('standings')" id="mnav-standings" class="py-2.5 flex flex-col items-center justify-center text-[11px] font-medium text-slate-500">
+      <span class="text-base">🏆</span><span>順位表</span>
+    </button>
+  </nav>
+
+  <!-- QRコード共有モーダル -->
+  <div id="qr-modal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <span class="text-xs font-bold text-teal-700">選手スマホ共有用 QRコード</span>
+          <h3 id="qr-modal-title" class="text-lg font-black text-slate-800">大会対戦表・順位表</h3>
+        </div>
+        <button onclick="closeQrModal()" class="text-slate-400 hover:text-slate-700 text-2xl font-bold leading-none">&times;</button>
+      </div>
+      <div class="flex flex-col items-center justify-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+        <div id="qrcode-box" class="bg-white p-3 rounded-lg shadow-sm"></div>
+        <p class="text-xs text-slate-500 text-center mt-3">
+          スマホのカメラで読み取ると、現在の対戦表と順位表を選手用画面で確認できます。<br/>
+          <span class="text-[11px] text-amber-700">※ローカルファイル(file://)で開いている場合は、Webサーバーや共有フォルダ上に配置すると他のスマホからも開けます。</span>
+        </p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="copyShareUrl()" class="flex-1 bg-teal-700 hover:bg-teal-600 text-white font-bold text-xs py-2.5 rounded-lg">共有URLをコピー</button>
+        <button onclick="closeQrModal()" class="px-4 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs py-2.5 rounded-lg">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選手戦績詳細モーダル -->
+  <div id="player-detail-modal" class="hidden fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="detail-player-name" class="text-lg font-black text-slate-800">選手戦績詳細</h3>
+        <button onclick="document.getElementById('player-detail-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">&times;</button>
+      </div>
+      <div id="detail-player-body" class="space-y-2 text-sm"></div>
+    </div>
+  </div>
+
+  <script>
+    // ==================== 協会マスタ ====================
+    const ASSOCIATIONS = {
+      0: { code: 0, name: '無所属', short: 'なし', color: 'bg-slate-100 text-slate-600 border-slate-300' },
+      1: { code: 1, name: '札幌市', short: '1.札幌', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+      2: { code: 2, name: '北見市', short: '2.北見', color: 'bg-indigo-100 text-indigo-800 border-indigo-300' },
+      3: { code: 3, name: '美幌町', short: '3.美幌', color: 'bg-teal-100 text-teal-800 border-teal-300' },
+      4: { code: 4, name: '池田町', short: '4.池田', color: 'bg-purple-100 text-purple-800 border-purple-300' },
+      5: { code: 5, name: '森町', short: '5.森', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+      6: { code: 6, name: '安平町', short: '6.安平', color: 'bg-amber-100 text-amber-800 border-amber-300' },
+      7: { code: 7, name: 'むかわ町', short: '7.むかわ', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+      8: { code: 8, name: '白老町', short: '8.白老', color: 'bg-rose-100 text-rose-800 border-rose-300' }
+    };
+
+    const SAMPLE_33 = [
+      { name: '佐藤 健太', assoc: 3 }, { name: '高橋 美咲', assoc: 1 }, { name: '伊藤 誠一', assoc: 2 },
+      { name: '渡辺 直美', assoc: 3 }, { name: '山本 浩二', assoc: 4 }, { name: '中村 優子', assoc: 5 },
+      { name: '小林 隆司', assoc: 6 }, { name: '加藤 由美', assoc: 7 }, { name: '吉田 拓海', assoc: 8 },
+      { name: '山田 恵子', assoc: 3 }, { name: '佐々木 翔太', assoc: 1 }, { name: '山口 真由美', assoc: 2 },
+      { name: '松本 大輔', assoc: 3 }, { name: '井上 陽子', assoc: 4 }, { name: '木村 俊介', assoc: 5 },
+      { name: '林 智子', assoc: 6 }, { name: '斎藤 和也', assoc: 7 }, { name: '清水 久美子', assoc: 8 },
+      { name: '山崎 達也', assoc: 3 }, { name: '森 亜矢子', assoc: 1 }, { name: '池田 竜也', assoc: 2 },
+      { name: '橋本 彩乃', assoc: 3 }, { name: '阿部 剛志', assoc: 4 }, { name: '石川 沙織', assoc: 5 },
+      { name: '山下 健二', assoc: 6 }, { name: '中島 麻衣', assoc: 7 }, { name: '石井 康平', assoc: 8 },
+      { name: '小川 奈々', assoc: 3 }, { name: '前田 誠', assoc: 1 }, { name: '藤田 裕子', assoc: 2 },
+      { name: '後藤 晃', assoc: 3 }, { name: '岡田 千尋', assoc: 4 }, { name: '長谷川 潤', assoc: 8 }
+    ];
+
+    // ==================== アプリ状態 ====================
+    let state = {
+      tournamentName: '第1回 ペタンク・メレ交流大会',
+      plannedRounds: 4,
+      durationMin: 50,
+      courtCount: 0, // 0 = 自動
+      rankingMode: 'bhs', // 'bhs' | 'points'
+      ptWin: 1,
+      ptDraw: 0.5,
+      ptLoss: 0,
+      players: [],
+      rounds: [], // [{ roundNum, courts: [{ courtNum, type, red: [id...], blue: [id...], scoreRed: null, scoreBlue: null }], resting: [id...] }]
+      currentRoundIndex: 0
+    };
+
+    let swapMode = false;
+    let swapSelected = null; // { courtIdx, team, slotIdx, playerId }
+    let viewerHighlightId = '';
+    let isViewerMode = false;
+
+    // タイマー状態
+    let timerSeconds = 50 * 60;
+    let timerInterval = null;
+    let warningPlayed = false;
+
+    // ==================== 初期化 ====================
+    window.addEventListener('DOMContentLoaded', () => {
+      buildCourtButtons();
+      if (window.location.hash && window.location.hash.startsWith('#share=')) {
+        try {
+          const encoded = window.location.hash.replace('#share=', '');
+          const jsonStr = decodeURIComponent(escape(atob(encoded)));
+          const sharedData = JSON.parse(jsonStr);
+          state = { ...state, ...sharedData };
+          enterViewerMode();
+          return;
+        } catch (e) {
+          console.error('共有データの読込失敗:', e);
+        }
+      }
+      loadLocalState();
+      syncConfigUI();
+      renderPlayers();
+      updateCourtPreview();
+      if (state.rounds.length > 0) {
+        renderMatches();
+        renderStandings();
+      }
+    });
+
+    function saveLocalState() {
+      if (isViewerMode) return;
+      try {
+        localStorage.setItem('petanque_melee_state_v4', JSON.stringify(state));
+      } catch (e) {}
+    }
+
+    function loadLocalState() {
+      try {
+        const raw = localStorage.getItem('petanque_melee_state_v4');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state = { ...state, ...parsed };
+          timerSeconds = state.durationMin * 60;
+        }
+      } catch (e) {}
+    }
+
+    function resetAllData() {
+      if (!confirm('登録した選手や対戦結果をすべて消去して初期状態に戻しますか？')) return;
+      localStorage.removeItem('petanque_melee_state_v4');
+      location.hash = '';
+      location.reload();
+    }
+
+    // ==================== タブ切替 ====================
+    function switchTab(tabName) {
+      ['guide', 'setup', 'matches', 'standings'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== tabName);
+        const nav = document.getElementById('nav-' + t);
+        if (nav) nav.classList.toggle('tab-active', t === tabName);
+        const mnav = document.getElementById('mnav-' + t);
+        if (mnav) {
+          mnav.className = t === tabName
+            ? 'py-2.5 flex flex-col items-center justify-center text-[11px] font-bold text-teal-700 bg-teal-50/60'
+            : 'py-2.5 flex flex-col items-center justify-center text-[11px] font-medium text-slate-500';
+        }
+      });
+      if (tabName === 'matches') renderMatches();
+      if (tabName === 'standings') renderStandings();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ==================== 設定＆コート計算 ====================
+    function buildCourtButtons() {
+      const container = document.getElementById('court-buttons');
+      let html = `<button onclick="setCourtCount(0)" id="cbtn-0" class="py-1.5 rounded-lg text-xs font-bold border transition bg-teal-700 text-white border-teal-700">自動</button>`;
+      for (let i = 1; i <= 14; i++) {
+        html += `<button onclick="setCourtCount(${i})" id="cbtn-${i}" class="py-1.5 rounded-lg text-xs font-bold border transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100">${i}面</button>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function setCourtCount(num) {
+      state.courtCount = num;
+      for (let i = 0; i <= 14; i++) {
+        const btn = document.getElementById('cbtn-' + i);
+        if (!btn) continue;
+        btn.className = (i === num)
+          ? 'py-1.5 rounded-lg text-xs font-bold border transition bg-teal-700 text-white border-teal-700 shadow-sm'
+          : 'py-1.5 rounded-lg text-xs font-bold border transition bg-white text-slate-700 border-slate-300 hover:bg-slate-100';
+      }
+      updateCourtPreview();
+      saveLocalState();
+    }
+
+    function calculateCourtAllocation(playerCount, fixedCourts) {
+      if (playerCount < 4) return { valid: false, msg: '4名以上の参加者を登録してください。' };
+      let c33 = 0, c23 = 0, c22 = 0, rest = 0;
+
+      if (fixedCourts === 0) {
+        // 自動：待機ゼロ最優先（ダブルス＋2×3中心）
+        if (playerCount === 5) { c23 = 1; }
+        else if (playerCount === 6) { c33 = 1; }
+        else {
+          const rem = playerCount % 4;
+          if (rem === 0) { c22 = playerCount / 4; }
+          else if (rem === 1) { c23 = 1; c22 = (playerCount - 5) / 4; }
+          else if (rem === 2) { c33 = 1; c22 = (playerCount - 6) / 4; }
+          else if (rem === 3) {
+            if (playerCount >= 11) { c23 = 1; c33 = 1; c22 = (playerCount - 11) / 4; }
+            else { c33 = 1; rest = 1; }
+          }
+        }
+      } else {
+        // コート数固定時の最適配分（最大収容 6*fixedCourts, 最小 4*fixedCourts）
+        const maxCap = fixedCourts * 6;
+        const minCap = fixedCourts * 4;
+        if (playerCount < minCap) {
+          // コートが余る場合、使える分だけ使う
+          return calculateCourtAllocation(playerCount, 0);
+        }
+        const activePlayers = Math.min(playerCount, maxCap);
+        rest = playerCount - activePlayers;
+        const extra = activePlayers - fixedCourts * 4; // 0 〜 2*fixedCourts
+        c33 = Math.floor(extra / 2);
+        c23 = extra % 2;
+        c22 = fixedCourts - c33 - c23;
+      }
+
+      const parts = [];
+      if (c33 > 0) parts.push(`トリプルス(3×3)×${c33}面`);
+      if (c23 > 0) parts.push(`変則(2×3)×${c23}面`);
+      if (c22 > 0) parts.push(`ダブルス(2×2)×${c22}面`);
+      const totalCourts = c33 + c23 + c22;
+      return {
+        valid: true,
+        c33, c23, c22, rest, totalCourts,
+        msg: `計${totalCourts}面使用：${parts.join(' ＋ ')} ／ 待機 ${rest}名`
+      };
+    }
+
+    function updateCourtPreview() {
+      const res = calculateCourtAllocation(state.players.length, state.courtCount);
+      document.getElementById('court-preview-box').textContent = res.msg;
+    }
+
+    function updateConfig() {
+      state.tournamentName = document.getElementById('tournament-name').value.trim() || 'ペタンク・メレ大会';
+      state.plannedRounds = parseInt(document.getElementById('planned-rounds').value, 10);
+      const modeEl = document.querySelector('input[name="rankingMode"]:checked');
+      state.rankingMode = modeEl ? modeEl.value : 'bhs';
+      state.ptWin = parseFloat(document.getElementById('pt-win').value) || 0;
+      state.ptDraw = parseFloat(document.getElementById('pt-draw').value) || 0;
+      state.ptLoss = parseFloat(document.getElementById('pt-loss').value) || 0;
+
+      document.getElementById('header-title').textContent = state.tournamentName;
+      document.getElementById('header-rule-badge').textContent = `11点先取 ／ ${state.durationMin}分制 ／ 全${state.plannedRounds}回戦`;
+      document.getElementById('custom-points-box').classList.toggle('hidden', state.rankingMode !== 'points');
+      saveLocalState();
+    }
+
+    function syncConfigUI() {
+      document.getElementById('tournament-name').value = state.tournamentName;
+      document.getElementById('planned-rounds').value = state.plannedRounds;
+      document.getElementById('match-duration').value = state.durationMin;
+      document.getElementById('pt-win').value = state.ptWin;
+      document.getElementById('pt-draw').value = state.ptDraw;
+      document.getElementById('pt-loss').value = state.ptLoss;
+      const radio = document.querySelector(`input[name="rankingMode"][value="${state.rankingMode}"]`);
+      if (radio) radio.checked = true;
+      setCourtCount(state.courtCount);
+      updateConfig();
+    }
+
+    // ==================== 参加者管理 ====================
+    function addSinglePlayer() {
+      const input = document.getElementById('new-player-name');
+      const assoc = parseInt(document.getElementById('new-player-assoc').value, 10);
+      const name = input.value.trim();
+      if (!name) return;
+      state.players.push({ id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name, assoc });
+      input.value = '';
+      renderPlayers();
+      updateCourtPreview();
+      saveLocalState();
+    }
+
+    function addBulkPlayers() {
+      const text = document.getElementById('bulk-names').value;
+      const assoc = parseInt(document.getElementById('bulk-assoc').value, 10);
+      const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      if (lines.length === 0) return;
+      lines.forEach((name, idx) => {
+        state.players.push({ id: 'p_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).slice(2, 5), name, assoc });
+      });
+      document.getElementById('bulk-names').value = '';
+      renderPlayers();
+      updateCourtPreview();
+      saveLocalState();
+    }
+
+    function loadSample33() {
+      state.players = SAMPLE_33.map((p, i) => ({
+        id: 'sample_' + (i + 1),
+        name: p.name,
+        assoc: p.assoc
+      }));
+      renderPlayers();
+      updateCourtPreview();
+      saveLocalState();
+    }
+
+    function loadSampleAndGo() {
+      loadSample33();
+      switchTab('setup');
+    }
+
+    function clearPlayers() {
+      if (!confirm('参加者リストを空にしますか？')) return;
+      state.players = [];
+      state.rounds = [];
+      renderPlayers();
+      updateCourtPreview();
+      saveLocalState();
+    }
+
+    function setPlayerAssoc(playerId, assocCode) {
+      const p = state.players.find(x => x.id === playerId);
+      if (p) {
+        p.assoc = assocCode;
+        renderPlayers();
+        saveLocalState();
+      }
+    }
+
+    function removePlayer(playerId) {
+      state.players = state.players.filter(x => x.id !== playerId);
+      renderPlayers();
+      updateCourtPreview();
+      saveLocalState();
+    }
+
+    function renderPlayers() {
+      document.getElementById('player-count').textContent = state.players.length;
+      const container = document.getElementById('player-list-container');
+      if (state.players.length === 0) {
+        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">まだ参加者が登録されていません。<br/>上のフォームから追加するか「サンプル33名読込」をお試しください。</div>`;
+        return;
+      }
+      container.innerHTML = state.players.map((p, idx) => {
+        const assocButtons = Object.values(ASSOCIATIONS).filter(a => a.code > 0).map(a => {
+          const active = p.assoc === a.code;
+          return `<button onclick="setPlayerAssoc('${p.id}', ${a.code})" class="px-2 py-0.5 rounded text-[11px] font-bold border transition ${active ? a.color + ' ring-1 ring-offset-1 ring-slate-400' : 'bg-white text-slate-400 border-slate-200 hover:text-slate-700'}">${a.short}</button>`;
+        }).join('');
+
+        return `
+          <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white transition">
+            <div class="flex items-center gap-2 min-w-[140px]">
+              <span class="text-xs font-mono font-bold text-slate-400 w-6">${idx + 1}.</span>
+              <span class="font-bold text-sm text-slate-800">${escapeHtml(p.name)}</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1">
+              ${assocButtons}
+              <button onclick="removePlayer('${p.id}')" class="ml-1 text-slate-400 hover:text-rose-600 font-bold px-1.5 text-base" title="削除">&times;</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==================== 組み合わせ抽選アルゴリズム ====================
+    function startFirstRound() {
+      if (state.players.length < 4) {
+        alert('試合を行うには4名以上の参加者を登録してください。');
+        return;
+      }
+      if (state.rounds.length > 0) {
+        if (!confirm('すでに作成済みの対戦表をリセットして第1回戦から作り直しますか？')) {
+          switchTab('matches');
+          return;
+        }
+      }
+      state.rounds = [];
+      generateNextRound();
+      switchTab('matches');
+    }
+
+    function generateNextRound() {
+      const alloc = calculateCourtAllocation(state.players.length, state.courtCount);
+      if (!alloc.valid) {
+        alert(alloc.msg);
+        return;
+      }
+
+      // 過去の履歴集計（休み回数、味方回数、対戦回数）
+      const restCount = {};
+      const partnerCount = {};
+      const oppCount = {};
+      state.players.forEach(p => {
+        restCount[p.id] = 0;
+        partnerCount[p.id] = {};
+        oppCount[p.id] = {};
+      });
+
+      state.rounds.forEach(r => {
+        r.resting.forEach(id => { if (restCount[id] !== undefined) restCount[id]++; });
+        r.courts.forEach(c => {
+          c.red.forEach(a => {
+            c.red.forEach(b => { if (a !== b && partnerCount[a]) partnerCount[a][b] = (partnerCount[a][b] || 0) + 1; });
+            c.blue.forEach(b => { if (oppCount[a]) oppCount[a][b] = (oppCount[a][b] || 0) + 1; });
+          });
+          c.blue.forEach(a => {
+            c.blue.forEach(b => { if (a !== b && partnerCount[a]) partnerCount[a][b] = (partnerCount[a][b] || 0) + 1; });
+            c.red.forEach(b => { if (oppCount[a]) oppCount[a][b] = (oppCount[a][b] || 0) + 1; });
+          });
+        });
+      });
+
+      const lastResting = state.rounds.length > 0 ? new Set(state.rounds[state.rounds.length - 1].resting) : new Set();
+
+      // 50回シミュレーションして最も重複ペナルティが少ない組み合わせを採用
+      let bestConfig = null;
+      let bestPenalty = Infinity;
+
+      for (let attempt = 0; attempt < 60; attempt++) {
+        // 休み回数が少ない順に並べてシャッフル（連続休み回避）
+        const sorted = [...state.players].sort((a, b) => {
+          const ra = restCount[a.id] + (lastResting.has(a.id) ? 0.5 : 0);
+          const rb = restCount[b.id] + (lastResting.has(b.id) ? 0.5 : 0);
+          if (ra !== rb) return rb - ra; // 休みが多い人を先頭（出場確定）にする
+          return Math.random() - 0.5;
+        });
+
+        const activeCount = state.players.length - alloc.rest;
+        const active = sorted.slice(0, activeCount);
+        const resting = sorted.slice(activeCount).map(p => p.id);
+
+        // active内で再度ランダムシャッフル
+        for (let i = active.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [active[i], active[j]] = [active[j], active[i]];
+        }
+
+        let idx = 0;
+        let penalty = 0;
+        const courts = [];
+        let courtNum = 1;
+
+        const buildCourt = (type, rSize, bSize) => {
+          const red = active.slice(idx, idx + rSize).map(p => p.id); idx += rSize;
+          const blue = active.slice(idx, idx + bSize).map(p => p.id); idx += bSize;
+          // ペナルティ計算
+          red.forEach(a => {
+            red.forEach(b => { if (a !== b) penalty += (partnerCount[a][b] || 0) * 100; });
+            blue.forEach(b => { penalty += (oppCount[a][b] || 0) * 25; });
+          });
+          blue.forEach(a => {
+            blue.forEach(b => { if (a !== b) penalty += (partnerCount[a][b] || 0) * 100; });
+          });
+          courts.push({ courtNum: courtNum++, type, red, blue, scoreRed: null, scoreBlue: null });
+        };
+
+        for (let i = 0; i < alloc.c33; i++) buildCourt('3×3', 3, 3);
+        for (let i = 0; i < alloc.c23; i++) buildCourt('2×3', 2, 3);
+        for (let i = 0; i < alloc.c22; i++) buildCourt('2×2', 2, 2);
+
+        if (penalty < bestPenalty) {
+          bestPenalty = penalty;
+          bestConfig = { courts, resting };
+          if (penalty === 0) break;
+        }
+      }
+
+      const newRound = {
+        roundNum: state.rounds.length + 1,
+        courts: bestConfig.courts,
+        resting: bestConfig.resting
+      };
+      state.rounds.push(newRound);
+      state.currentRoundIndex = state.rounds.length - 1;
+      resetTimer();
+      renderMatches();
+      renderStandings();
+      saveLocalState();
+    }
+
+    function rerollCurrentRound() {
+      if (state.rounds.length === 0) return;
+      const r = state.rounds[state.currentRoundIndex];
+      const hasScore = r.courts.some(c => c.scoreRed !== null || c.scoreBlue !== null);
+      if (hasScore && !confirm('すでに入力されているこの回戦のスコアがクリアされます。再抽選しますか？')) return;
+      if (state.currentRoundIndex !== state.rounds.length - 1) {
+        alert('再抽選できるのは最新の回戦のみです。');
+        return;
+      }
+      state.rounds.pop();
+      generateNextRound();
+    }
+
+    // ==================== 対戦表レンダリング＆スコア入力 ====================
+    function getPlayerBadgeHtml(playerId) {
+      const p = state.players.find(x => x.id === playerId);
+      if (!p) return '<span class="text-slate-400">不明</span>';
+      const assoc = ASSOCIATIONS[p.assoc] || ASSOCIATIONS[0];
+      const isHighlighted = viewerHighlightId && viewerHighlightId === p.id;
+      return `
+        <span class="inline-flex items-center gap-1.5 ${isHighlighted ? 'bg-amber-300 text-slate-950 px-2 py-0.5 rounded-md ring-2 ring-amber-500 font-black' : ''}">
+          ${assoc.code > 0 ? `<span class="text-[10px] font-bold px-1.5 py-0.2 rounded border ${assoc.color}">${assoc.short}</span>` : ''}
+          <span class="font-bold text-slate-800 text-sm">${escapeHtml(p.name)}</span>
+        </span>
+      `;
+    }
+
+    function renderMatches() {
+      if (state.rounds.length === 0) {
+        document.getElementById('courts-container').innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl p-8 text-center border border-slate-200 space-y-3">
+            <div class="text-slate-500 text-sm">まだ対戦表が作成されていません。</div>
+            <button onclick="switchTab('setup')" class="bg-teal-700 text-white font-bold text-sm px-5 py-2.5 rounded-xl">設定画面へ戻る</button>
+          </div>`;
+        return;
+      }
+
+      // ラウンド切替タブ
+      const tabsEl = document.getElementById('round-tabs');
+      tabsEl.innerHTML = state.rounds.map((r, idx) => {
+        const active = idx === state.currentRoundIndex;
+        const done = r.courts.every(c => c.scoreRed !== null && c.scoreBlue !== null);
+        return `
+          <button onclick="selectRound(${idx})" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition ${active ? 'bg-teal-700 text-white border-teal-700 shadow-sm' : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'}">
+            第${r.roundNum}回戦 ${done ? '✅' : ''}
+          </button>
+        `;
+      }).join('');
+
+      const round = state.rounds[state.currentRoundIndex];
+      document.getElementById('current-round-heading').textContent = `第${round.roundNum}回戦 対戦表（全${state.plannedRounds}回戦予定）`;
+      document.getElementById('current-round-sub').textContent = `全試合 11点先取 ／ 制限時間 ${state.durationMin}分`;
+
+      // ラウンド完了チェック＆大型進行バナー制御
+      const isCurrentDone = round.courts.every(c => c.scoreRed !== null && c.scoreBlue !== null);
+      const isAllPlannedDone = state.rounds.length >= state.plannedRounds &&
+        state.rounds.slice(0, state.plannedRounds).every(r => r.courts.every(c => c.scoreRed !== null && c.scoreBlue !== null));
+
+      const bannerEl = document.getElementById('round-complete-banner');
+      if (isAllPlannedDone) {
+        bannerEl.classList.remove('hidden');
+        bannerEl.innerHTML = `
+          <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 rounded-2xl p-4 md:p-5 shadow-lg flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="text-xs font-black uppercase tracking-wider">ALL ROUNDS COMPLETED</div>
+              <div class="text-lg md:text-xl font-black">🎉 全${state.plannedRounds}回戦がすべて終了しました！</div>
+            </div>
+            <button onclick="switchTab('standings')" class="bg-slate-900 hover:bg-slate-800 text-white font-black text-sm md:text-base px-6 py-3 rounded-xl shadow transition">
+              🏆 最終成績発表を見る ➡
+            </button>
+          </div>
+        `;
+      } else if (isCurrentDone && !isViewerMode) {
+        bannerEl.classList.remove('hidden');
+        const hasNextAlready = state.currentRoundIndex < state.rounds.length - 1;
+        bannerEl.innerHTML = `
+          <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-4 shadow-md flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="text-xs font-bold text-emerald-100">ROUND ${round.roundNum} COMPLETED</div>
+              <div class="text-base md:text-lg font-black">✅ 第${round.roundNum}回戦のスコア入力が完了しました！</div>
+            </div>
+            ${hasNextAlready
+              ? `<button onclick="selectRound(${state.currentRoundIndex + 1})" class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-sm px-5 py-3 rounded-xl shadow transition">➡ 第${round.roundNum + 1}回戦へ進む</button>`
+              : `<button onclick="generateNextRound()" class="bg-amber-400 hover:bg-amber-300 text-slate-900 font-black text-sm px-5 py-3 rounded-xl shadow transition">➡ 第${round.roundNum + 1}回戦の組み合わせを作って進む</button>`
+            }
+          </div>
+        `;
+      } else {
+        bannerEl.classList.add('hidden');
+      }
+
+      // 待機選手
+      const restBox = document.getElementById('resting-players-box');
+      if (round.resting.length > 0) {
+        restBox.classList.remove('hidden');
+        restBox.innerHTML = `<span class="font-bold text-slate-700 mr-2">☕ 第${round.roundNum}回戦 待機（休み）：</span>` +
+          round.resting.map(id => getPlayerBadgeHtml(id)).join(' / ');
+      } else {
+        restBox.classList.add('hidden');
+      }
+
+      // コートカード描画
+      const container = document.getElementById('courts-container');
+      container.innerHTML = round.courts.map((c, cIdx) => {
+        const is2x3 = c.type === '2×3';
+        const redWin = c.scoreRed !== null && c.scoreBlue !== null && c.scoreRed > c.scoreBlue;
+        const blueWin = c.scoreRed !== null && c.scoreBlue !== null && c.scoreBlue > c.scoreRed;
+
+        const renderTeamSlots = (teamKey, ids) => ids.map((pid, sIdx) => {
+          const isSwapTarget = swapMode && swapSelected && swapSelected.courtIdx === cIdx && swapSelected.team === teamKey && swapSelected.slotIdx === sIdx;
+          return `
+            <div onclick="handleSlotClick(${cIdx}, '${teamKey}', ${sIdx}, '${pid}')"
+                 class="py-1 px-2 rounded-lg transition ${swapMode ? 'cursor-pointer border border-dashed border-amber-400 hover:bg-amber-50' : ''} ${isSwapTarget ? 'bg-amber-200 ring-2 ring-amber-500' : ''}">
+              ${getPlayerBadgeHtml(pid)}
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden card-shadow">
+            <div class="bg-slate-800 text-white px-4 py-2 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-black text-base">第 ${c.courtNum} コート</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded ${is2x3 ? 'bg-amber-400 text-slate-900' : 'bg-white/20 text-white'}">${c.type}</span>
+              </div>
+              ${is2x3 ? `<span class="text-[11px] text-amber-300 font-bold">持ち球目安：2人側=3球 / 3人側=2球</span>` : `<span class="text-[11px] text-slate-300">11点先取</span>`}
+            </div>
+
+            <div class="p-4 grid grid-cols-11 gap-2 items-center">
+              <!-- 赤チーム -->
+              <div class="col-span-5 rounded-xl p-2.5 border ${redWin ? 'bg-rose-50 border-rose-400 ring-1 ring-rose-300' : 'bg-rose-50/40 border-rose-200'}">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-black text-rose-700">🔴 赤チーム (${c.red.length}名)</span>
+                  ${redWin ? '<span class="text-[10px] bg-rose-600 text-white font-bold px-1.5 py-0.5 rounded">WIN</span>' : ''}
+                </div>
+                <div class="space-y-1">${renderTeamSlots('red', c.red)}</div>
+              </div>
+
+              <!-- スコア入力 -->
+              <div class="col-span-1 text-center font-black text-slate-400 text-xs">VS</div>
+
+              <!-- 青チーム -->
+              <div class="col-span-5 rounded-xl p-2.5 border ${blueWin ? 'bg-sky-50 border-sky-400 ring-1 ring-sky-300' : 'bg-sky-50/40 border-sky-200'}">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-black text-sky-700">🔵 青チーム (${c.blue.length}名)</span>
+                  ${blueWin ? '<span class="text-[10px] bg-sky-600 text-white font-bold px-1.5 py-0.5 rounded">WIN</span>' : ''}
+                </div>
+                <div class="space-y-1">${renderTeamSlots('blue', c.blue)}</div>
+              </div>
+            </div>
+
+            <!-- 得点操作フッター -->
+            <div class="bg-slate-50 px-4 py-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+              <button onclick="setQuickWin(${cIdx}, 'red')" ${isViewerMode ? 'disabled' : ''} class="bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shadow-sm transition">
+                赤 11点勝利
+              </button>
+
+              <div class="flex items-center gap-1.5">
+                <input type="number" min="0" max="11" value="${c.scoreRed !== null ? c.scoreRed : ''}" placeholder="-"
+                       onchange="updateScore(${cIdx}, 'red', this.value)" ${isViewerMode ? 'disabled' : ''}
+                       class="w-12 text-center font-black text-base border border-slate-300 rounded-lg py-1 bg-white" />
+                <span class="font-bold text-slate-400">-</span>
+                <input type="number" min="0" max="11" value="${c.scoreBlue !== null ? c.scoreBlue : ''}" placeholder="-"
+                       onchange="updateScore(${cIdx}, 'blue', this.value)" ${isViewerMode ? 'disabled' : ''}
+                       class="w-12 text-center font-black text-base border border-slate-300 rounded-lg py-1 bg-white" />
+              </div>
+
+              <button onclick="setQuickWin(${cIdx}, 'blue')" ${isViewerMode ? 'disabled' : ''} class="bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shadow-sm transition">
+                青 11点勝利
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectRound(idx) {
+      state.currentRoundIndex = idx;
+      swapSelected = null;
+      renderMatches();
+    }
+
+    function setQuickWin(courtIdx, winner) {
+      if (isViewerMode) return;
+      const c = state.rounds[state.currentRoundIndex].courts[courtIdx];
+      if (winner === 'red') {
+        c.scoreRed = 11;
+        if (c.scoreBlue === null || c.scoreBlue >= 11) c.scoreBlue = 0;
+      } else {
+        c.scoreBlue = 11;
+        if (c.scoreRed === null || c.scoreRed >= 11) c.scoreRed = 0;
+      }
+      renderMatches();
+      renderStandings();
+      saveLocalState();
+    }
+
+    function updateScore(courtIdx, side, val) {
+      if (isViewerMode) return;
+      const c = state.rounds[state.currentRoundIndex].courts[courtIdx];
+      const num = val === '' ? null : Math.max(0, Math.min(11, parseInt(val, 10)));
+      if (side === 'red') c.scoreRed = num;
+      else c.scoreBlue = num;
+      renderMatches();
+      renderStandings();
+      saveLocalState();
+    }
+
+    // 手動入替
+    function toggleSwapMode() {
+      swapMode = !swapMode;
+      swapSelected = null;
+      const btn = document.getElementById('swap-mode-btn');
+      btn.textContent = swapMode ? '🔄 選手手動入替: ON (2名選択)' : '🔄 選手手動入替: OFF';
+      btn.className = swapMode
+        ? 'bg-amber-400 text-slate-900 font-black text-xs px-3 py-2 rounded-lg shadow-sm transition'
+        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3 py-2 rounded-lg border border-slate-300 transition';
+      renderMatches();
+    }
+
+    function handleSlotClick(courtIdx, team, slotIdx, playerId) {
+      if (!swapMode || isViewerMode) return;
+      if (!swapSelected) {
+        swapSelected = { courtIdx, team, slotIdx, playerId };
+        renderMatches();
+      } else {
+        const round = state.rounds[state.currentRoundIndex];
+        const firstPid = round.courts[swapSelected.courtIdx][swapSelected.team][swapSelected.slotIdx];
+        const secondPid = round.courts[courtIdx][team][slotIdx];
+        round.courts[swapSelected.courtIdx][swapSelected.team][swapSelected.slotIdx] = secondPid;
+        round.courts[courtIdx][team][slotIdx] = firstPid;
+        swapSelected = null;
+        renderMatches();
+        saveLocalState();
+      }
+    }
+
+    // ==================== 順位計算（BHS方式 ＆ カスタムポイント＋直接対決） ====================
+    function computeStandings() {
+      const stats = {};
+      state.players.forEach(p => {
+        stats[p.id] = {
+          player: p,
+          played: 0,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          points: 0,
+          pf: 0,
+          pa: 0,
+          diff: 0,
+          bhs: 0,
+          involvedIds: [], // 対戦相手・味方ID（BHS用）
+          h2h: {}, // { oppId: { wins, losses } }（直接対決用）
+          history: [],
+          tieReason: ''
+        };
+      });
+
+      state.rounds.forEach(r => {
+        r.courts.forEach(c => {
+          if (c.scoreRed === null || c.scoreBlue === null) return;
+          const rScore = c.scoreRed;
+          const bScore = c.scoreBlue;
+          const result = rScore > bScore ? 'red' : (bScore > rScore ? 'blue' : 'draw');
+
+          const recordSide = (myIds, oppIds, myScore, oppScore, outcome) => {
+            myIds.forEach(pid => {
+              const s = stats[pid];
+              if (!s) return;
+              s.played++;
+              s.pf += myScore;
+              s.pa += oppScore;
+              s.diff = s.pf - s.pa;
+
+              // 関わった全選手（味方＋相手）を記録
+              myIds.forEach(ally => { if (ally !== pid) s.involvedIds.push(ally); });
+              oppIds.forEach(opp => {
+                s.involvedIds.push(opp);
+                if (!s.h2h[opp]) s.h2h[opp] = { wins: 0, losses: 0 };
+                if (outcome === 'win') s.h2h[opp].wins++;
+                if (outcome === 'loss') s.h2h[opp].losses++;
+              });
+
+              if (outcome === 'win') {
+                s.wins++;
+                s.points += state.ptWin;
+              } else if (outcome === 'draw') {
+                s.draws++;
+                s.points += state.ptDraw;
+              } else {
+                s.losses++;
+                s.points += state.ptLoss; // 参加点は敗戦時のみ加点
+              }
+
+              s.history.push({
+                roundNum: r.roundNum,
+                courtNum: c.courtNum,
+                allies: myIds.filter(x => x !== pid),
+                opponents: oppIds,
+                myScore,
+                oppScore,
+                outcome
+              });
+            });
+          };
+
+          recordSide(c.red, c.blue, rScore, bScore, result === 'red' ? 'win' : (result === 'blue' ? 'loss' : 'draw'));
+          recordSide(c.blue, c.red, bScore, rScore, result === 'blue' ? 'win' : (result === 'red' ? 'loss' : 'draw'));
+        });
+      });
+
+      // BHS（ソルコフ：対戦相手＋味方の勝利数合計）計算
+      Object.values(stats).forEach(s => {
+        s.bhs = s.involvedIds.reduce((sum, id) => sum + (stats[id] ? stats[id].wins : 0), 0);
+      });
+
+      const list = Object.values(stats);
+
+      if (state.rankingMode === 'bhs') {
+        // 勝利数 → BHS → 得失点差 → 総得点
+        list.sort((a, b) => {
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          if (b.bhs !== a.bhs) { a.tieReason = `BHS (${a.bhs})`; b.tieReason = `BHS (${b.bhs})`; return b.bhs - a.bhs; }
+          if (b.diff !== a.diff) { a.tieReason = `得失差 (${a.diff >= 0 ? '+' : ''}${a.diff})`; b.tieReason = `得失差 (${b.diff >= 0 ? '+' : ''}${b.diff})`; return b.diff - a.diff; }
+          return b.pf - a.pf;
+        });
+      } else {
+        // カスタムポイント → 直接対決 → 得失点差 → 総得点
+        list.sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          // 直接対決チェック
+          const h2hA = a.h2h[b.player.id];
+          if (h2hA && h2hA.wins !== h2hA.losses) {
+            if (h2hA.wins > h2hA.losses) {
+              a.tieReason = `直接対決勝ち (vs ${b.player.name})`;
+              return -1;
+            } else {
+              b.tieReason = `直接対決勝ち (vs ${a.player.name})`;
+              return 1;
+            }
+          }
+          if (b.diff !== a.diff) {
+            a.tieReason = `得失差 (${a.diff >= 0 ? '+' : ''}${a.diff})`;
+            b.tieReason = `得失差 (${b.diff >= 0 ? '+' : ''}${b.diff})`;
+            return b.diff - a.diff;
+          }
+          return b.pf - a.pf;
+        });
+      }
+
+      return list;
+    }
+
+    function renderStandings() {
+      const list = computeStandings();
+      const filter = document.getElementById('assoc-filter').value;
+      const filtered = filter === 'all' ? list : list.filter(s => String(s.player.assoc) === filter);
+
+      document.getElementById('standings-title').textContent = `${state.tournamentName} - 個人順位表`;
+      document.getElementById('standings-rule-desc').textContent = state.rankingMode === 'bhs'
+        ? '順位決定基準：①勝利数 → ②BHS（ソルコフ） → ③得失点差 → ④総得点（選手名クリックで対戦履歴表示）'
+        : `順位決定基準：①累計ポイント（勝${state.ptWin}/分${state.ptDraw}/負${state.ptLoss}） → ②直接対決 → ③得失点差 → ④総得点`;
+
+      // TOP3表彰台
+      const podiumEl = document.getElementById('podium-container');
+      const medals = ['🥇 優勝（第1位）', '🥈 準優勝（第2位）', '🥉 第3位'];
+      const medalStyles = [
+        'bg-gradient-to-br from-amber-50 to-yellow-100 border-amber-300',
+        'bg-gradient-to-br from-slate-50 to-slate-200 border-slate-300',
+        'bg-gradient-to-br from-orange-50 to-amber-100/60 border-orange-300'
+      ];
+      podiumEl.innerHTML = list.slice(0, 3).map((s, i) => {
+        const assoc = ASSOCIATIONS[s.player.assoc] || ASSOCIATIONS[0];
+        const mainStat = state.rankingMode === 'bhs'
+          ? `${s.wins}勝 (BHS: ${s.bhs} / 得失: ${s.diff >= 0 ? '+' : ''}${s.diff})`
+          : `${s.points}pt (${s.wins}勝${s.draws}分${s.losses}敗 / 得失: ${s.diff >= 0 ? '+' : ''}${s.diff})`;
+        return `
+          <div class="p-4 rounded-xl border ${medalStyles[i]} shadow-sm">
+            <div class="text-xs font-black text-slate-700">${medals[i]}</div>
+            <div class="text-lg font-black text-slate-900 mt-1 flex items-center gap-2">
+              <span>${escapeHtml(s.player.name)}</span>
+              ${assoc.code > 0 ? `<span class="text-[10px] px-1.5 py-0.5 rounded border ${assoc.color}">${assoc.short}</span>` : ''}
+            </div>
+            <div class="text-xs font-bold text-slate-600 mt-1">${mainStat}</div>
+          </div>
+        `;
+      }).join('');
+
+      // テーブルヘッダー
+      const thead = document.getElementById('standings-thead');
+      thead.innerHTML = state.rankingMode === 'bhs'
+        ? `<tr>
+            <th class="py-2.5 px-3">順位</th>
+            <th class="py-2.5 px-3">選手名 / 協会</th>
+            <th class="py-2.5 px-2 text-center">試合</th>
+            <th class="py-2.5 px-2 text-center">勝</th>
+            <th class="py-2.5 px-2 text-center">敗</th>
+            <th class="py-2.5 px-2 text-center bg-teal-50 text-teal-900">BHS</th>
+            <th class="py-2.5 px-2 text-center">得失差</th>
+            <th class="py-2.5 px-2 text-center">総得点</th>
+            <th class="py-2.5 px-3">判定備考</th>
+          </tr>`
+        : `<tr>
+            <th class="py-2.5 px-3">順位</th>
+            <th class="py-2.5 px-3">選手名 / 協会</th>
+            <th class="py-2.5 px-2 text-center bg-amber-50 text-amber-900">累計pt</th>
+            <th class="py-2.5 px-2 text-center">勝</th>
+            <th class="py-2.5 px-2 text-center">分</th>
+            <th class="py-2.5 px-2 text-center">敗</th>
+            <th class="py-2.5 px-2 text-center">得失差</th>
+            <th class="py-2.5 px-2 text-center">総得点</th>
+            <th class="py-2.5 px-3">判定備考</th>
+          </tr>`;
+
+      const tbody = document.getElementById('standings-tbody');
+      tbody.innerHTML = filtered.map(s => {
+        const actualRank = list.indexOf(s) + 1;
+        const assoc = ASSOCIATIONS[s.player.assoc] || ASSOCIATIONS[0];
+        const diffStr = `${s.diff >= 0 ? '+' : ''}${s.diff}`;
+        const rowHighlight = viewerHighlightId === s.player.id ? 'bg-amber-100/80' : 'hover:bg-slate-50';
+
+        return state.rankingMode === 'bhs'
+          ? `<tr class="${rowHighlight} cursor-pointer transition" onclick="openPlayerDetail('${s.player.id}')">
+              <td class="py-2.5 px-3 font-black text-slate-800">${actualRank}位</td>
+              <td class="py-2.5 px-3">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-slate-900 underline decoration-slate-300">${escapeHtml(s.player.name)}</span>
+                  ${assoc.code > 0 ? `<span class="text-[10px] px-1.5 rounded border ${assoc.color}">${assoc.short}</span>` : ''}
+                </div>
+              </td>
+              <td class="py-2.5 px-2 text-center text-slate-600">${s.played}</td>
+              <td class="py-2.5 px-2 text-center font-black text-teal-700">${s.wins}</td>
+              <td class="py-2.5 px-2 text-center text-slate-500">${s.losses}</td>
+              <td class="py-2.5 px-2 text-center font-black bg-teal-50/50 text-teal-900">${s.bhs}</td>
+              <td class="py-2.5 px-2 text-center font-bold ${s.diff >= 0 ? 'text-emerald-700' : 'text-rose-600'}">${diffStr}</td>
+              <td class="py-2.5 px-2 text-center text-slate-700">${s.pf}</td>
+              <td class="py-2.5 px-3 text-xs text-slate-500">${escapeHtml(s.tieReason)}</td>
+            </tr>`
+          : `<tr class="${rowHighlight} cursor-pointer transition" onclick="openPlayerDetail('${s.player.id}')">
+              <td class="py-2.5 px-3 font-black text-slate-800">${actualRank}位</td>
+              <td class="py-2.5 px-3">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-slate-900 underline decoration-slate-300">${escapeHtml(s.player.name)}</span>
+                  ${assoc.code > 0 ? `<span class="text-[10px] px-1.5 rounded border ${assoc.color}">${assoc.short}</span>` : ''}
+                </div>
+              </td>
+              <td class="py-2.5 px-2 text-center font-black bg-amber-50/60 text-amber-900">${s.points}</td>
+              <td class="py-2.5 px-2 text-center font-bold text-teal-700">${s.wins}</td>
+              <td class="py-2.5 px-2 text-center text-slate-500">${s.draws}</td>
+              <td class="py-2.5 px-2 text-center text-slate-500">${s.losses}</td>
+              <td class="py-2.5 px-2 text-center font-bold ${s.diff >= 0 ? 'text-emerald-700' : 'text-rose-600'}">${diffStr}</td>
+              <td class="py-2.5 px-2 text-center text-slate-700">${s.pf}</td>
+              <td class="py-2.5 px-3 text-xs text-slate-500">${escapeHtml(s.tieReason)}</td>
+            </tr>`;
+      }).join('');
+    }
+
+    function openPlayerDetail(playerId) {
+      const list = computeStandings();
+      const s = list.find(x => x.player.id === playerId);
+      if (!s) return;
+      document.getElementById('detail-player-name').textContent = `${s.player.name} の対戦履歴`;
+      const body = document.getElementById('detail-player-body');
+      if (s.history.length === 0) {
+        body.innerHTML = '<div class="text-slate-400">まだ完了した試合はありません。</div>';
+      } else {
+        const nameOf = id => (state.players.find(p => p.id === id)?.name || '不明');
+        body.innerHTML = s.history.map(h => {
+          const badge = h.outcome === 'win'
+            ? '<span class="bg-teal-600 text-white text-xs font-bold px-2 py-0.5 rounded">勝利</span>'
+            : (h.outcome === 'draw'
+              ? '<span class="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded">引分</span>'
+              : '<span class="bg-slate-400 text-white text-xs font-bold px-2 py-0.5 rounded">敗戦</span>');
+          return `
+            <div class="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-700">第${h.roundNum}回戦（第${h.courtNum}コート）</span>
+                <div class="flex items-center gap-2">
+                  <span class="font-black text-base">${h.myScore} - ${h.oppScore}</span>
+                  ${badge}
+                </div>
+              </div>
+              <div class="text-xs text-slate-600">味方：${h.allies.map(nameOf).join('・')}</div>
+              <div class="text-xs text-slate-600">相手：${h.opponents.map(nameOf).join('・')}</div>
+            </div>
+          `;
+        }).join('');
+      }
+      document.getElementById('player-detail-modal').classList.remove('hidden');
+    }
+
+    // ==================== 50分/45分 ホイッスルタイマー ====================
+    function changeDuration(min) {
+      state.durationMin = parseInt(min, 10);
+      document.getElementById('match-duration').value = state.durationMin;
+      document.getElementById('dur-btn-50').className = state.durationMin === 50
+        ? 'px-2.5 py-1.5 text-xs font-bold bg-teal-700 text-white'
+        : 'px-2.5 py-1.5 text-xs font-bold bg-white text-slate-600';
+      document.getElementById('dur-btn-45').className = state.durationMin === 45
+        ? 'px-2.5 py-1.5 text-xs font-bold bg-teal-700 text-white'
+        : 'px-2.5 py-1.5 text-xs font-bold bg-white text-slate-600';
+      updateConfig();
+      resetTimer();
+    }
+
+    function toggleTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        document.getElementById('timer-start-btn').textContent = '▶ 再開';
+      } else {
+        document.getElementById('timer-start-btn').textContent = '⏸ 一時停止';
+        timerInterval = setInterval(() => {
+          if (timerSeconds > 0) {
+            timerSeconds--;
+            updateTimerDisplay();
+            if (timerSeconds === 300 && !warningPlayed) {
+              warningPlayed = true;
+              playWhistle('warning');
+            }
+            if (timerSeconds === 0) {
+              clearInterval(timerInterval);
+              timerInterval = null;
+              document.getElementById('timer-start-btn').textContent = '▶ スタート';
+              playWhistle('end');
+            }
+          }
+        }, 1000);
+      }
+    }
+
+    function resetTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      timerSeconds = state.durationMin * 60;
+      warningPlayed = false;
+      document.getElementById('timer-start-btn').textContent = '▶ スタート';
+      updateTimerDisplay();
+    }
+
+    function updateTimerDisplay() {
+      const m = Math.floor(timerSeconds / 60);
+      const s = timerSeconds % 60;
+      const el = document.getElementById('timer-display');
+      const box = document.getElementById('timer-display-box');
+      el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      if (timerSeconds === 0) {
+        box.className = 'bg-rose-700 text-white px-4 py-2 rounded-xl text-center min-w-[130px] animate-pulse';
+      } else if (timerSeconds <= 300) {
+        box.className = 'bg-amber-600 text-white px-4 py-2 rounded-xl text-center min-w-[130px]';
+      } else {
+        box.className = 'bg-slate-900 text-white px-4 py-2 rounded-xl text-center min-w-[130px]';
+      }
+    }
+
+    // 審判用コルク入りホイッスル音合成（Web Audio API）
+    function playWhistle(type) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        const blow = (startTime, duration) => {
+          const osc = ctx.createOscillator();
+          const lfo = ctx.createOscillator();
+          const lfoGain = ctx.createGain();
+          const mainGain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(2850, startTime);
+          osc.frequency.exponentialRampToValueAtTime(2980, startTime + 0.08);
+
+          // コルクの震え（トリル変調）
+          lfo.type = 'sine';
+          lfo.frequency.setValueAtTime(42, startTime);
+          lfoGain.gain.setValueAtTime(110, startTime);
+
+          lfo.connect(lfoGain);
+          lfoGain.connect(osc.frequency);
+
+          mainGain.gain.setValueAtTime(0.001, startTime);
+          mainGain.gain.exponentialRampToValueAtTime(0.45, startTime + 0.03);
+          mainGain.gain.setValueAtTime(0.45, startTime + duration - 0.05);
+          mainGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+          osc.connect(mainGain);
+          mainGain.connect(ctx.destination);
+
+          osc.start(startTime);
+          lfo.start(startTime);
+          osc.stop(startTime + duration);
+          lfo.stop(startTime + duration);
+        };
+
+        const now = ctx.currentTime;
+        if (type === 'warning') {
+          // 残り5分：ピッ！ピッ！
+          blow(now, 0.25);
+          blow(now + 0.38, 0.25);
+        } else {
+          // 試合終了：ピーーーッ！
+          blow(now, 1.35);
+        }
+      } catch (e) {
+        alert('音声の再生に失敗しました。ブラウザの音量設定をご確認ください。');
+      }
+    }
+
+    // ==================== QRコード共有 ＆ 選手閲覧モード ====================
+    function buildShareUrl() {
+      const compact = {
+        tournamentName: state.tournamentName,
+        plannedRounds: state.plannedRounds,
+        durationMin: state.durationMin,
+        rankingMode: state.rankingMode,
+        ptWin: state.ptWin,
+        ptDraw: state.ptDraw,
+        ptLoss: state.ptLoss,
+        players: state.players,
+        rounds: state.rounds,
+        currentRoundIndex: state.currentRoundIndex
+      };
+      const jsonStr = JSON.stringify(compact);
+      const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+      const base = window.location.href.split('#')[0];
+      return `${base}#share=${b64}`;
+    }
+
+    function openQrModal() {
+      document.getElementById('qr-modal-title').textContent = state.tournamentName;
+      const box = document.getElementById('qrcode-box');
+      box.innerHTML = '';
+      const url = buildShareUrl();
+      new QRCode(box, {
+        text: url,
+        width: 210,
+        height: 210,
+        correctLevel: QRCode.CorrectLevel.L
+      });
+      document.getElementById('qr-modal').classList.remove('hidden');
+    }
+
+    function closeQrModal() {
+      document.getElementById('qr-modal').classList.add('hidden');
+    }
+
+    function copyShareUrl() {
+      navigator.clipboard.writeText(buildShareUrl()).then(() => {
+        alert('共有URLをクリップボードにコピーしました！');
+      });
+    }
+
+    function enterViewerMode() {
+      isViewerMode = true;
+      document.getElementById('viewer-banner').classList.remove('hidden');
+      document.getElementById('viewer-tournament-name').textContent = state.tournamentName;
+      const sel = document.getElementById('viewer-player-select');
+      sel.innerHTML = `<option value="">自分の名前をハイライト...</option>` +
+        state.players.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+      switchTab('matches');
+    }
+
+    function exitViewerMode() {
+      isViewerMode = false;
+      viewerHighlightId = '';
+      document.getElementById('viewer-banner').classList.add('hidden');
+      window.location.hash = '';
+      renderMatches();
+      renderStandings();
+    }
+
+    function setViewerHighlight(pid) {
+      viewerHighlightId = pid;
+      renderMatches();
+      renderStandings();
+    }
+
+    // ==================== CSV出力 ＆ ユーティリティ ====================
+    function exportCsv() {
+      const list = computeStandings();
+      const headers = state.rankingMode === 'bhs'
+        ? ['順位', '選手名', '協会', '試合数', '勝', '敗', 'BHS', '得失点差', '総得点', '備考']
+        : ['順位', '選手名', '協会', '累計ポイント', '勝', '分', '敗', '得失点差', '総得点', '備考'];
+      const rows = list.map((s, idx) => {
+        const assocName = (ASSOCIATIONS[s.player.assoc] || ASSOCIATIONS[0]).name;
+        return state.rankingMode === 'bhs'
+          ? [idx + 1, s.player.name, assocName, s.played, s.wins, s.losses, s.bhs, s.diff, s.pf, s.tieReason]
+          : [idx + 1, s.player.name, assocName, s.points, s.wins, s.draws, s.losses, s.diff, s.pf, s.tieReason];
+      });
+      const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${state.tournamentName}_順位表.csv`;
+      a.click();
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+  </script>
+</body>
+</html>
